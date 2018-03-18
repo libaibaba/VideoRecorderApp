@@ -715,7 +715,7 @@ public class CameraActivity extends AppCompatActivity {
 
             @Override
             public void onTick(long millisUntilFinished) {
-                timerText.setText("" + (millisUntilFinished / 1000));
+                timerText.setText(String.valueOf(millisUntilFinished / 1000));
             }
 
             @Override
