@@ -8,6 +8,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.VideoView;
 
+import com.bumptech.glide.Glide;
 import com.videorecorderapp.R;
 
 import butterknife.BindView;
@@ -62,6 +63,11 @@ public class PreviewActivity extends AppCompatActivity {
                     videoView.start();
                 }
             });
+        }
+        else
+        {
+            photoView.setVisibility(View.VISIBLE);
+            Glide.with(getApplicationContext()).load(path).into(photoView);
         }
 
         closeButton.setOnClickListener(new View.OnClickListener() {

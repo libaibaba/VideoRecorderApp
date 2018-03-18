@@ -72,7 +72,7 @@ public class CameraActivity extends AppCompatActivity {
     PreviewFileAdapter adapter;
     ArrayList<HashMap<String, Object>> photoVideoList;
 
-    boolean isRecording = false;
+    boolean isRecording = false, isPhotoCapturing = false;
 
 
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
@@ -300,6 +300,7 @@ public class CameraActivity extends AppCompatActivity {
         mRecordVideo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                isPhotoCapturing = false;
                 if (isRecording) {
                     stopVideoRecording();
                 } else {
@@ -313,7 +314,8 @@ public class CameraActivity extends AppCompatActivity {
         mCaptureImage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                lockFocus();
+                isPhotoCapturing = true;
+                checkWriteStoragePermission();
             }
         });
     }
@@ -531,7 +533,7 @@ public class CameraActivity extends AppCompatActivity {
     private void startStillCaptureRequest() {
         try {
             if(isRecording) {
-                mCaptureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_VIDEO_SNAPSHOT);
+                mCaptureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             } else {
                 mCaptureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             }
@@ -546,19 +548,27 @@ public class CameraActivity extends AppCompatActivity {
 
                             try {
                                 createImageFileName();
-
+                                //Toast.makeText(getApplicationContext(), "FFFFD", Toast.LENGTH_SHORT).show();
                                 //Toast.makeText(CameraActivity.this, mImageFileName, Toast.LENGTH_SHORT).show();
                                 HashMap<String, Object> tempMap = new HashMap<>();
                                 tempMap.put("type", PHOTO_TYPE);
                                 tempMap.put("path", mImageFileName);
                                 photoVideoList.add(0,tempMap);
 
-                                runOnUiThread(new Runnable() {
+                                final Handler handler = new Handler();
+                                handler.postDelayed(new Runnable() {
                                     @Override
                                     public void run() {
-                                        adapter.notifyDataSetChanged();
+                                        //Do something after 100ms
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                adapter.notifyDataSetChanged();
+                                            }
+                                        });
                                     }
-                                });
+                                }, 800);
+
 
                             } catch (IOException e) {
                                 e.printStackTrace();
@@ -652,7 +662,7 @@ public class CameraActivity extends AppCompatActivity {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     == PackageManager.PERMISSION_GRANTED) {
 
-                if(isRecording) {
+                if(isRecording && !isPhotoCapturing) {
                     isRecording = true;
                     mRecordVideo.setImageResource(R.drawable.ic_videocam_on);
                     try {
@@ -664,6 +674,10 @@ public class CameraActivity extends AppCompatActivity {
                     mMediaRecorder.start();
 
                     startTimer();
+                }
+                else
+                {
+                    lockFocus();
                 }
 
             } else {
@@ -674,7 +688,7 @@ public class CameraActivity extends AppCompatActivity {
             }
         } else {
 
-                if(isRecording) {
+                if(isRecording && !isPhotoCapturing) {
                     isRecording = true;
                     mRecordVideo.setImageResource(R.drawable.ic_videocam_on);
                     try {
@@ -685,6 +699,10 @@ public class CameraActivity extends AppCompatActivity {
                     startRecord();
                     mMediaRecorder.start();
                     startTimer();
+                }
+                else
+                {
+                    lockFocus();
                 }
         }
     }
@@ -749,7 +767,7 @@ public class CameraActivity extends AppCompatActivity {
         HashMap<String, Object> tempMap = new HashMap<>();
         tempMap.put("type", VIDEO_TYPE);
         tempMap.put("path", mVideoFileName);
-        photoVideoList.add(tempMap);
+        photoVideoList.add(0, tempMap);
 
         adapter.notifyDataSetChanged();
 
