@@ -194,6 +194,7 @@ public class CameraActivity extends AppCompatActivity {
             CameraCaptureSession.CaptureCallback() {
 
                 private void process(CaptureResult captureResult) {
+                    //Toast.makeText(getApplicationContext(), "ock", Toast.LENGTH_SHORT).show();
                     switch (mCaptureState) {
                         case STATE_PREVIEW:
                             // Do nothing
@@ -203,9 +204,10 @@ public class CameraActivity extends AppCompatActivity {
                             Integer afState = captureResult.get(CaptureResult.CONTROL_AF_STATE);
                             if(afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
                                     afState == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
-                                Toast.makeText(getApplicationContext(), "AF Locked!", Toast.LENGTH_SHORT).show();
-                                startStillCaptureRequest();
+                                //Toast.makeText(getApplicationContext(), "AF Locked!", Toast.LENGTH_SHORT).show();
+                                //startStillCaptureRequest();
                             }
+                            startStillCaptureRequest();
                             break;
                     }
                 }
@@ -229,13 +231,16 @@ public class CameraActivity extends AppCompatActivity {
                             // Do nothing
                             break;
                         case STATE_WAIT_LOCK:
+
+                            //Toast.makeText(getApplicationContext(), "DDDDD", Toast.LENGTH_SHORT).show();
                             mCaptureState = STATE_PREVIEW;
                             Integer afState = captureResult.get(CaptureResult.CONTROL_AF_STATE);
                             if(afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
                                     afState == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
-                                Toast.makeText(getApplicationContext(), "AF Locked!", Toast.LENGTH_SHORT).show();
-                                startStillCaptureRequest();
+                                //Toast.makeText(getApplicationContext(), "AF Locked!", Toast.LENGTH_SHORT).show();
+                                //startStillCaptureRequest();
                             }
+                            startStillCaptureRequest();
                             break;
                     }
                 }
@@ -542,13 +547,18 @@ public class CameraActivity extends AppCompatActivity {
                             try {
                                 createImageFileName();
 
-                                Toast.makeText(CameraActivity.this, mImageFileName, Toast.LENGTH_SHORT).show();
-
-                                /*HashMap<String, Object> tempMap = new HashMap<>();
+                                //Toast.makeText(CameraActivity.this, mImageFileName, Toast.LENGTH_SHORT).show();
+                                HashMap<String, Object> tempMap = new HashMap<>();
                                 tempMap.put("type", PHOTO_TYPE);
                                 tempMap.put("path", mImageFileName);
-                                photoVideoList.add(tempMap);
-                                adapter.notifyDataSetChanged();*/
+                                photoVideoList.add(0,tempMap);
+
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        adapter.notifyDataSetChanged();
+                                    }
+                                });
 
                             } catch (IOException e) {
                                 e.printStackTrace();

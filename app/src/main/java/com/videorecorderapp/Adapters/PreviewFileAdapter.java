@@ -53,6 +53,7 @@ public class PreviewFileAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
             final String path = "" + map.get("path");
 
             Glide.with(context).load(path).into(mHolder.pic);
+
             if(type == 1)
             {
                mHolder.playIcon.setVisibility(View.VISIBLE);
