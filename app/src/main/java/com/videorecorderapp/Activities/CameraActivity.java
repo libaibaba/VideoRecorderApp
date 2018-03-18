@@ -299,6 +299,7 @@ public class CameraActivity extends AppCompatActivity {
                     stopVideoRecording();
                 } else {
                     isRecording = true;
+                    mRecordVideo.setImageResource(R.drawable.ic_videocam_on);
                     checkWriteStoragePermission();
                 }
             }
@@ -345,6 +346,10 @@ public class CameraActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CAMERA_PERMISSION_RESULT) {
             if (grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(getApplicationContext(),
+                        "Application will not run without camera services", Toast.LENGTH_SHORT).show();
+            }
+            if (grantResults[1] != PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(getApplicationContext(),
                         "Application will not run without camera services", Toast.LENGTH_SHORT).show();
             }
@@ -436,7 +441,7 @@ public class CameraActivity extends AppCompatActivity {
                         Toast.makeText(this,
                                 "Video app required access to camera", Toast.LENGTH_SHORT).show();
                     }
-                    requestPermissions(new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION_RESULT);
+                    requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO}, REQUEST_CAMERA_PERMISSION_RESULT);
                 }
 
             } else {
@@ -537,11 +542,13 @@ public class CameraActivity extends AppCompatActivity {
                             try {
                                 createImageFileName();
 
-                                HashMap<String, Object> tempMap = new HashMap<>();
+                                Toast.makeText(CameraActivity.this, mImageFileName, Toast.LENGTH_SHORT).show();
+
+                                /*HashMap<String, Object> tempMap = new HashMap<>();
                                 tempMap.put("type", PHOTO_TYPE);
                                 tempMap.put("path", mImageFileName);
                                 photoVideoList.add(tempMap);
-                                adapter.notifyDataSetChanged();
+                                adapter.notifyDataSetChanged();*/
 
                             } catch (IOException e) {
                                 e.printStackTrace();
@@ -694,12 +701,14 @@ public class CameraActivity extends AppCompatActivity {
 
     private void setupMediaRecorder() throws IOException {
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         mMediaRecorder.setOutputFile(mVideoFileName);
         mMediaRecorder.setVideoEncodingBitRate(10000000);
         mMediaRecorder.setVideoFrameRate(30);
         mMediaRecorder.setVideoSize(mVideoSize.getWidth(), mVideoSize.getHeight());
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
         mMediaRecorder.setOrientationHint(mTotalRotation);
         mMediaRecorder.setMaxDuration(MAX_VIDEO_DURATION);
 
