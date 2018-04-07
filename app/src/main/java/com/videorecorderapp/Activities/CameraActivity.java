@@ -5,6 +5,10 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -27,6 +31,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.Surface;
@@ -58,6 +63,10 @@ import butterknife.ButterKnife;
 
 public class CameraActivity extends AppCompatActivity {
 
+    SensorManager sensorManager;
+    Sensor sensor;
+    SensorEventListener sensorEventListener;
+
     @BindView(R.id.capture_image)
     ImageView mCaptureImage;
     @BindView(R.id.record_video)
@@ -69,6 +78,8 @@ public class CameraActivity extends AppCompatActivity {
     @BindView(R.id.recycler_view)
     RecyclerView recyclerView;
 
+    Context context;
+
     PreviewFileAdapter adapter;
     ArrayList<HashMap<String, Object>> photoVideoList;
 
@@ -79,8 +90,9 @@ public class CameraActivity extends AppCompatActivity {
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT = 1;
     private static final int STATE_PREVIEW = 0;
     private static final int STATE_WAIT_LOCK = 1;
+    @BindView(R.id.car_image)
+    ImageView carImage;
     private int mCaptureState = STATE_PREVIEW;
-
 
 
     private TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
@@ -177,7 +189,7 @@ public class CameraActivity extends AppCompatActivity {
                 e.printStackTrace();
             } finally {
                 mImage.close();
-                if(fileOutputStream != null) {
+                if (fileOutputStream != null) {
                     try {
                         fileOutputStream.close();
                     } catch (IOException e) {
@@ -202,7 +214,7 @@ public class CameraActivity extends AppCompatActivity {
                         case STATE_WAIT_LOCK:
                             mCaptureState = STATE_PREVIEW;
                             Integer afState = captureResult.get(CaptureResult.CONTROL_AF_STATE);
-                            if(afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
+                            if (afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
                                     afState == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
                                 //Toast.makeText(getApplicationContext(), "AF Locked!", Toast.LENGTH_SHORT).show();
                                 //startStillCaptureRequest();
@@ -235,7 +247,7 @@ public class CameraActivity extends AppCompatActivity {
                             //Toast.makeText(getApplicationContext(), "DDDDD", Toast.LENGTH_SHORT).show();
                             mCaptureState = STATE_PREVIEW;
                             Integer afState = captureResult.get(CaptureResult.CONTROL_AF_STATE);
-                            if(afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
+                            if (afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
                                     afState == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
                                 //Toast.makeText(getApplicationContext(), "AF Locked!", Toast.LENGTH_SHORT).show();
                                 //startStillCaptureRequest();
@@ -286,6 +298,36 @@ public class CameraActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
         ButterKnife.bind(this);
+
+        context = this;
+
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        sensor = sensorManager.getDefaultSensor(Sensor.REPORTING_MODE_SPECIAL_TRIGGER);
+
+        if (sensor == null) {
+            Toast.makeText(getApplicationContext(), "Sensor Error!", Toast.LENGTH_SHORT).show();
+            finish();
+        }
+
+        sensorEventListener = new SensorEventListener() {
+            @Override
+            public void onSensorChanged(final SensorEvent event) {
+                //Toast.makeText(getApplicationContext(), ""+event.values[0], Toast.LENGTH_SHORT).show();
+
+                new Handler().postDelayed(new Runnable() {
+                    public void run() {
+                        updateCar((float) Math.round(event.values[0]));
+                    }
+                }, 250);
+            }
+
+            @Override
+            public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+            }
+        };
+        ;
+
 
         photoVideoList = new ArrayList<>();
         adapter = new PreviewFileAdapter(this, photoVideoList);
@@ -338,6 +380,8 @@ public class CameraActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
+        sensorManager.registerListener(sensorEventListener, sensor, SensorManager.AXIS_X);
+
         startBackgroundThread();
         if (mTextureView.isAvailable()) {
             setupCamera(mTextureView.getWidth(), mTextureView.getHeight());
@@ -364,7 +408,7 @@ public class CameraActivity extends AppCompatActivity {
 
         if (requestCode == REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if(isRecording) {
+                if (isRecording) {
                     mMediaRecorder = new MediaRecorder();
                     //isRecording = true;
                     mRecordVideo.setImageResource(R.drawable.ic_videocam_on);
@@ -389,6 +433,7 @@ public class CameraActivity extends AppCompatActivity {
     protected void onPause() {
         closeCamera();
 
+        sensorManager.unregisterListener(sensorEventListener);
         stopBackgroundThread();
         super.onPause();
     }
@@ -532,7 +577,7 @@ public class CameraActivity extends AppCompatActivity {
 
     private void startStillCaptureRequest() {
         try {
-            if(isRecording) {
+            if (isRecording) {
                 mCaptureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             } else {
                 mCaptureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
@@ -553,7 +598,7 @@ public class CameraActivity extends AppCompatActivity {
                                 HashMap<String, Object> tempMap = new HashMap<>();
                                 tempMap.put("type", PHOTO_TYPE);
                                 tempMap.put("path", mImageFileName);
-                                photoVideoList.add(0,tempMap);
+                                photoVideoList.add(0, tempMap);
 
                                 final Handler handler = new Handler();
                                 handler.postDelayed(new Runnable() {
@@ -576,7 +621,7 @@ public class CameraActivity extends AppCompatActivity {
                         }
                     };
 
-            if(isRecording) {
+            if (isRecording) {
                 mRecordCaptureSession.capture(mCaptureRequestBuilder.build(), stillCaptureCallback, null);
             } else {
                 mPreviewCaptureSession.capture(mCaptureRequestBuilder.build(), stillCaptureCallback, null);
@@ -644,7 +689,7 @@ public class CameraActivity extends AppCompatActivity {
     private void createImageFolder() {
         File imageFile = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
         mImageFolder = new File(imageFile, "VideoRecorderApp");
-        if(!mImageFolder.exists()) {
+        if (!mImageFolder.exists()) {
             mImageFolder.mkdirs();
         }
     }
@@ -662,7 +707,7 @@ public class CameraActivity extends AppCompatActivity {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     == PackageManager.PERMISSION_GRANTED) {
 
-                if(isRecording && !isPhotoCapturing) {
+                if (isRecording && !isPhotoCapturing) {
                     isRecording = true;
                     mRecordVideo.setImageResource(R.drawable.ic_videocam_on);
                     try {
@@ -674,9 +719,7 @@ public class CameraActivity extends AppCompatActivity {
                     mMediaRecorder.start();
 
                     startTimer();
-                }
-                else
-                {
+                } else {
                     lockFocus();
                 }
 
@@ -688,26 +731,25 @@ public class CameraActivity extends AppCompatActivity {
             }
         } else {
 
-                if(isRecording && !isPhotoCapturing) {
-                    isRecording = true;
-                    mRecordVideo.setImageResource(R.drawable.ic_videocam_on);
-                    try {
-                        createVideoFileName();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    startRecord();
-                    mMediaRecorder.start();
-                    startTimer();
+            if (isRecording && !isPhotoCapturing) {
+                isRecording = true;
+                mRecordVideo.setImageResource(R.drawable.ic_videocam_on);
+                try {
+                    createVideoFileName();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-                else
-                {
-                    lockFocus();
-                }
+                startRecord();
+                mMediaRecorder.start();
+                startTimer();
+            } else {
+                lockFocus();
+            }
         }
     }
 
     CountDownTimer mCountDownTimer;
+
     private void startTimer() {
 
         timerText.setVisibility(View.VISIBLE);
@@ -783,13 +825,235 @@ public class CameraActivity extends AppCompatActivity {
         mCaptureState = STATE_WAIT_LOCK;
         mCaptureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START);
         try {
-            if(isRecording) {
+            if (isRecording) {
                 mRecordCaptureSession.capture(mCaptureRequestBuilder.build(), mRecordCaptureCallback, mBackgroundHandler);
             } else {
                 mPreviewCaptureSession.capture(mCaptureRequestBuilder.build(), mPreviewCaptureCallback, mBackgroundHandler);
             }
         } catch (CameraAccessException e) {
             e.printStackTrace();
+        }
+    }
+
+
+    private boolean isFirstCar = true;
+    private float initialReading = 0.0f;
+
+    private void updateCar(float f) {
+        //this.f1134a.setText("Heading: " + Float.toString(f) + " degrees");
+        if (this.isFirstCar) {
+            Log.e("CompassActivity", " degree value inside: " + f);
+            this.initialReading = f;
+            this.isFirstCar = false;
+        }
+        float f2 = f - this.initialReading;
+        Log.e("ComapassActivity", "Current degree value: " + String.valueOf(this.initialReading) + " DIFF value: " + String.valueOf(f2));
+        if (f2 <= 3.0f && f2 > -3.0f) {
+            this.carImage.setImageResource(R.drawable.img44);
+        } else if (f2 <= -3.0f && f2 > -9.0f) {
+            this.carImage.setImageResource(R.drawable.img43);
+        } else if (f2 <= -9.0f && f2 > -15.0f) {
+            this.carImage.setImageResource(R.drawable.img42);
+        } else if (f2 <= -15.0f && f2 > -21.0f) {
+            this.carImage.setImageResource(R.drawable.img41);
+        } else if (f2 <= -21.0f && f2 > -28.0f) {
+            this.carImage.setImageResource(R.drawable.img40);
+        } else if (f2 <= -28.0f && f2 > -35.0f) {
+            this.carImage.setImageResource(R.drawable.img39);
+        } else if (f2 <= -35.0f && f2 > -42.0f) {
+            this.carImage.setImageResource(R.drawable.img38);
+        } else if (f2 <= -42.0f && f2 > -49.0f) {
+            this.carImage.setImageResource(R.drawable.img37);
+        } else if (f2 <= -49.0f && f2 > -56.0f) {
+            this.carImage.setImageResource(R.drawable.img36);
+        } else if (f2 <= -56.0f && f2 > -63.0f) {
+            this.carImage.setImageResource(R.drawable.img35);
+        } else if (f2 <= -63.0f && f2 > -70.0f) {
+            this.carImage.setImageResource(R.drawable.img34);
+        } else if (f2 <= -70.0f && f2 > -77.0f) {
+            this.carImage.setImageResource(R.drawable.img33);
+        } else if (f2 <= -77.0f && f2 > -84.0f) {
+            this.carImage.setImageResource(R.drawable.img32);
+        } else if (f2 <= -84.0f && f2 > -91.0f) {
+            this.carImage.setImageResource(R.drawable.img31);
+        } else if (f2 <= -91.0f && f2 > -98.0f) {
+            this.carImage.setImageResource(R.drawable.img30);
+        } else if (f2 <= -98.0f && f2 > -105.0f) {
+            this.carImage.setImageResource(R.drawable.img29);
+        } else if (f2 <= -105.0f && f2 > -112.0f) {
+            this.carImage.setImageResource(R.drawable.img28);
+        } else if (f2 <= -112.0f && f2 > -119.0f) {
+            this.carImage.setImageResource(R.drawable.img27);
+        } else if (f2 <= -119.0f && f2 > -126.0f) {
+            this.carImage.setImageResource(R.drawable.img26);
+        } else if (f2 <= -126.0f && f2 > -133.0f) {
+            this.carImage.setImageResource(R.drawable.img25);
+        } else if (f2 <= -133.0f && f2 > -140.0f) {
+            this.carImage.setImageResource(R.drawable.img24);
+        } else if (f2 <= -140.0f && f2 > -147.0f) {
+            this.carImage.setImageResource(R.drawable.img23);
+        } else if (f2 <= -147.0f && f2 > -154.0f) {
+            this.carImage.setImageResource(R.drawable.img22);
+        } else if (f2 <= -154.0f && f2 > -161.0f) {
+            this.carImage.setImageResource(R.drawable.img21);
+        } else if (f2 <= -161.0f && f2 > -168.0f) {
+            this.carImage.setImageResource(R.drawable.img20);
+        } else if (f2 <= -168.0f && f2 > -175.0f) {
+            this.carImage.setImageResource(R.drawable.img19);
+        } else if (f2 <= -175.0f && f2 > -182.0f) {
+            this.carImage.setImageResource(R.drawable.img18);
+        } else if (f2 <= -182.0f && f2 > -189.0f) {
+            this.carImage.setImageResource(R.drawable.img17);
+        } else if (f2 <= -189.0f && f2 > -196.0f) {
+            this.carImage.setImageResource(R.drawable.img16);
+        } else if (f2 <= -196.0f && f2 > -203.0f) {
+            this.carImage.setImageResource(R.drawable.img15);
+        } else if (f2 <= -203.0f && f2 > -210.0f) {
+            this.carImage.setImageResource(R.drawable.img14);
+        } else if (f2 <= -210.0f && f2 > -217.0f) {
+            this.carImage.setImageResource(R.drawable.img13);
+        } else if (f2 <= -217.0f && f2 > -224.0f) {
+            this.carImage.setImageResource(R.drawable.img12);
+        } else if (f2 <= -224.0f && f2 > -231.0f) {
+            this.carImage.setImageResource(R.drawable.img11);
+        } else if (f2 <= -231.0f && f2 > -238.0f) {
+            this.carImage.setImageResource(R.drawable.img10);
+        } else if (f2 <= -238.0f && f2 > -245.0f) {
+            this.carImage.setImageResource(R.drawable.img9);
+        } else if (f2 <= -245.0f && f2 > -252.0f) {
+            this.carImage.setImageResource(R.drawable.img8);
+        } else if (f2 <= -252.0f && f2 > -259.0f) {
+            this.carImage.setImageResource(R.drawable.img7);
+        } else if (f2 <= -259.0f && f2 > -266.0f) {
+            this.carImage.setImageResource(R.drawable.img6);
+        } else if (f2 <= -266.0f && f2 > -273.0f) {
+            this.carImage.setImageResource(R.drawable.img5);
+        } else if (f2 <= -273.0f && f2 > -280.0f) {
+            this.carImage.setImageResource(R.drawable.img4);
+        } else if (f2 <= -280.0f && f2 > -287.0f) {
+            this.carImage.setImageResource(R.drawable.img3);
+        } else if (f2 <= -287.0f && f2 > -294.0f) {
+            this.carImage.setImageResource(R.drawable.img2);
+        } else if (f2 <= -294.0f && f2 > -301.0f) {
+            this.carImage.setImageResource(R.drawable.img1);
+        } else if (f2 <= -301.0f && f2 > -308.0f) {
+            this.carImage.setImageResource(R.drawable.img52);
+        } else if (f2 <= -308.0f && f2 > -315.0f) {
+            this.carImage.setImageResource(R.drawable.img51);
+        } else if (f2 <= -315.0f && f2 > -322.0f) {
+            this.carImage.setImageResource(R.drawable.img50);
+        } else if (f2 <= -322.0f && f2 > -329.0f) {
+            this.carImage.setImageResource(R.drawable.img49);
+        } else if (f2 <= -329.0f && f2 > -336.0f) {
+            this.carImage.setImageResource(R.drawable.img48);
+        } else if (f2 <= -336.0f && f2 > -344.0f) {
+            this.carImage.setImageResource(R.drawable.img47);
+        } else if (f2 <= -344.0f && f2 > -352.0f) {
+            this.carImage.setImageResource(R.drawable.img46);
+        } else if (f2 <= -352.0f && f2 >= -360.0f) {
+            this.carImage.setImageResource(R.drawable.img45);
+        } else if (f2 > 3.0f && f2 <= 9.0f) {
+            this.carImage.setImageResource(R.drawable.img45);
+        } else if (f2 > 9.0f && f2 <= 15.0f) {
+            this.carImage.setImageResource(R.drawable.img46);
+        } else if (f2 > 15.0f && f2 <= 21.0f) {
+            this.carImage.setImageResource(R.drawable.img47);
+        } else if (f2 > 21.0f && f2 <= 28.0f) {
+            this.carImage.setImageResource(R.drawable.img48);
+        } else if (f2 > 28.0f && f2 <= 35.0f) {
+            this.carImage.setImageResource(R.drawable.img49);
+        } else if (f2 > 35.0f && f2 < 42.0f) {
+            this.carImage.setImageResource(R.drawable.img50);
+        } else if (f2 >= 42.0f && f2 < 49.0f) {
+            this.carImage.setImageResource(R.drawable.img51);
+        } else if (f2 >= 49.0f && f2 < 56.0f) {
+            this.carImage.setImageResource(R.drawable.img52);
+        } else if (f2 >= 56.0f && f2 < 63.0f) {
+            this.carImage.setImageResource(R.drawable.img1);
+        } else if (f2 >= 63.0f && f2 < 70.0f) {
+            this.carImage.setImageResource(R.drawable.img2);
+        } else if (f2 >= 70.0f && f2 < 77.0f) {
+            this.carImage.setImageResource(R.drawable.img3);
+        } else if (f2 >= 77.0f && f2 < 84.0f) {
+            this.carImage.setImageResource(R.drawable.img4);
+        } else if (f2 >= 84.0f && f2 < 91.0f) {
+            this.carImage.setImageResource(R.drawable.img5);
+        } else if (f2 >= 91.0f && f2 < 98.0f) {
+            this.carImage.setImageResource(R.drawable.img6);
+        } else if (f2 >= 98.0f && f2 < 105.0f) {
+            this.carImage.setImageResource(R.drawable.img7);
+        } else if (f2 >= 105.0f && f2 < 112.0f) {
+            this.carImage.setImageResource(R.drawable.img8);
+        } else if (f2 >= 112.0f && f2 < 119.0f) {
+            this.carImage.setImageResource(R.drawable.img9);
+        } else if (f2 >= 119.0f && f2 < 126.0f) {
+            this.carImage.setImageResource(R.drawable.img10);
+        } else if (f2 >= 126.0f && f2 < 133.0f) {
+            this.carImage.setImageResource(R.drawable.img11);
+        } else if (f2 >= 133.0f && f2 < 140.0f) {
+            this.carImage.setImageResource(R.drawable.img12);
+        } else if (f2 >= 140.0f && f2 < 147.0f) {
+            this.carImage.setImageResource(R.drawable.img13);
+        } else if (f2 > 147.0f && f2 < 154.0f) {
+            this.carImage.setImageResource(R.drawable.img14);
+        } else if (f2 >= 154.0f && f2 < 161.0f) {
+            this.carImage.setImageResource(R.drawable.img15);
+        } else if (f2 >= 161.0f && f2 < 168.0f) {
+            this.carImage.setImageResource(R.drawable.img16);
+        } else if (f2 >= 168.0f && f2 < 175.0f) {
+            this.carImage.setImageResource(R.drawable.img17);
+        } else if (f2 >= 175.0f && f2 < 182.0f) {
+            this.carImage.setImageResource(R.drawable.img18);
+        } else if (f2 >= 182.0f && f2 < 189.0f) {
+            this.carImage.setImageResource(R.drawable.img19);
+        } else if (f2 >= 189.0f && f2 < 196.0f) {
+            this.carImage.setImageResource(R.drawable.img20);
+        } else if (f2 >= 196.0f && f2 < 203.0f) {
+            this.carImage.setImageResource(R.drawable.img21);
+        } else if (f2 >= 203.0f && f2 < 210.0f) {
+            this.carImage.setImageResource(R.drawable.img22);
+        } else if (f2 >= 210.0f && f2 < 217.0f) {
+            this.carImage.setImageResource(R.drawable.img23);
+        } else if (f2 >= 217.0f && f2 < 224.0f) {
+            this.carImage.setImageResource(R.drawable.img24);
+        } else if (f2 >= 224.0f && f2 < 231.0f) {
+            this.carImage.setImageResource(R.drawable.img25);
+        } else if (f2 >= 231.0f && f2 < 238.0f) {
+            this.carImage.setImageResource(R.drawable.img26);
+        } else if (f2 >= 238.0f && f2 < 245.0f) {
+            this.carImage.setImageResource(R.drawable.img27);
+        } else if (f2 >= 245.0f && f2 < 252.0f) {
+            this.carImage.setImageResource(R.drawable.img28);
+        } else if (f2 >= 252.0f && f2 < 259.0f) {
+            this.carImage.setImageResource(R.drawable.img29);
+        } else if (f2 >= 259.0f && f2 < 266.0f) {
+            this.carImage.setImageResource(R.drawable.img30);
+        } else if (f2 >= 266.0f && f2 < 273.0f) {
+            this.carImage.setImageResource(R.drawable.img31);
+        } else if (f2 >= 273.0f && f2 < 280.0f) {
+            this.carImage.setImageResource(R.drawable.img32);
+        } else if (f2 >= 280.0f && f2 < 287.0f) {
+            this.carImage.setImageResource(R.drawable.img33);
+        } else if (f2 >= 287.0f && f2 < 294.0f) {
+            this.carImage.setImageResource(R.drawable.img34);
+        } else if (f2 >= 294.0f && f2 < 301.0f) {
+            this.carImage.setImageResource(R.drawable.img35);
+        } else if (f2 >= 301.0f && f2 < 308.0f) {
+            this.carImage.setImageResource(R.drawable.img36);
+        } else if (f2 >= 308.0f && f2 < 315.0f) {
+            this.carImage.setImageResource(R.drawable.img37);
+        } else if (f2 >= 315.0f && f2 < 322.0f) {
+            this.carImage.setImageResource(R.drawable.img38);
+        } else if (f2 >= 322.0f && f2 < 329.0f) {
+            this.carImage.setImageResource(R.drawable.img39);
+        } else if (f2 >= 329.0f && f2 < 336.0f) {
+            this.carImage.setImageResource(R.drawable.img40);
+        } else if (f2 >= 336.0f && f2 < 344.0f) {
+            this.carImage.setImageResource(R.drawable.img41);
+        } else if (f2 >= 344.0f && f2 < 352.0f) {
+            this.carImage.setImageResource(R.drawable.img42);
+        } else if (f2 >= 352.0f && f2 <= 360.0f) {
+            this.carImage.setImageResource(R.drawable.img43);
         }
     }
 }

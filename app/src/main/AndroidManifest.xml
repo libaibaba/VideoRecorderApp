@@ -8,6 +8,10 @@
     <uses-feature android:name="android.hardware.microphone" />
     <uses-feature android:name="android.hardware.camera2" />
 
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="true" />
+    <uses-feature android:name="android.hardware.sensor.compass" android:required="true" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="true" />
+
 
     <application
         android:allowBackup="true"
@@ -29,7 +33,7 @@
         </activity>
         <activity
             android:name=".Activities.CameraActivity"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"/>
         <activity android:name=".Activities.PreviewActivity"
             android:screenOrientation="portrait"></activity>
     </application>

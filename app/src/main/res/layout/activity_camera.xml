@@ -70,4 +70,12 @@
         android:textSize="35sp"
         android:layout_marginTop="10dp"/>
 
+
+    <ImageView
+        android:id="@+id/car_image"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_centerInParent="true"
+        app:srcCompat="@drawable/img44" />
+
 </RelativeLayout>
