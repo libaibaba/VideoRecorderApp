@@ -29,4 +29,11 @@
         android:layout_marginRight="28dp"
         app:srcCompat="@drawable/ic_photo_camera_black_24dp" />
 
+    <ImageView
+        android:id="@+id/car_image"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_centerInParent="true"
+        app:srcCompat="@drawable/img44" />
+
 </RelativeLayout>

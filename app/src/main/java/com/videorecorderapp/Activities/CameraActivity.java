@@ -326,7 +326,6 @@ public class CameraActivity extends AppCompatActivity {
 
             }
         };
-        ;
 
 
         photoVideoList = new ArrayList<>();
