@@ -36,7 +36,6 @@ jobs:
     - name: Create a release
       uses: softprops/action-gh-release@v1
       with:
-        body_path: releaselog_cache.txt
         files: ${{ github.workspace }}/app/build/outputs/apk/debug/app-debug.apk
         tag_name: v0.01
         name: VideoRecorderApp v0.01
